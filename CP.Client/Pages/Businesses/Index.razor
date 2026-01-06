@@ -1,0 +1,114 @@
+@page "/business"
+@inject IBusinessService BusinessService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@using CP.Shared.DTOs
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
+    <MudTable Items="@_businesses" Hover="true" Breakpoint="Breakpoint.Sm" Loading="@_loading" LoadingProgressColor="Color.Info">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">Negocios Registrados</MudText>
+            <MudSpacer />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateDialog">Nuevo Negocio</MudButton>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Imagen</MudTh>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh>Creado</MudTh>
+            <MudTh>Acciones</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Imagen">
+                @if (!string.IsNullOrEmpty(context.ImageUrl))
+                {
+                    <MudImage Src="@context.ImageUrl" Width="50" Height="50" ObjectFit="ObjectFit.Cover" Class="rounded-lg"/>
+                }
+                else
+                {
+                   <MudIcon Icon="@Icons.Material.Filled.Store" Size="Size.Large" />
+                }
+            </MudTd>
+            <MudTd DataLabel="Nombre">@context.Name</MudTd>
+            <MudTd DataLabel="Estado">
+                @if(context.IsActive)
+                {
+                    <MudChip T="string" Color="Color.Success" Size="Size.Small">Activo</MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Color="Color.Error" Size="Size.Small">Inactivo</MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="Creado">@context.CreatedAt.ToShortDateString()</MudTd>
+            <MudTd DataLabel="Acciones">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="@(() => OpenEditDialog(context))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteBusiness(context.Id))" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudContainer>
+
+@code {
+    private List<BusinessDto> _businesses = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBusinesses();
+    }
+
+    private async Task LoadBusinesses()
+    {
+        _loading = true;
+        _businesses = await BusinessService.GetAllAsync();
+        _loading = false;
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = DialogService.Show<BusinessDialog>("Crear Negocio", options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadBusinesses();
+        }
+    }
+
+    private async Task OpenEditDialog(BusinessDto business)
+    {
+        var parameters = new DialogParameters { ["BusinessId"] = business.Id };
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = DialogService.Show<BusinessDialog>("Editar Negocio", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadBusinesses();
+        }
+    }
+
+    private async Task DeleteBusiness(Guid id)
+    {
+        bool? result = await DialogService.ShowMessageBox(
+            "Eliminar Negocio", 
+            "¿Estás seguro/a? Esta acción no se puede deshacer.", 
+            yesText:"Eliminar", cancelText:"Cancelar");
+
+        if(result == true)
+        {
+            var success = await BusinessService.DeleteAsync(id);
+            if (success)
+            {
+                Snackbar.Add("Negocio eliminado", Severity.Success);
+                await LoadBusinesses();
+            }
+            else
+            {
+                Snackbar.Add("Error al eliminar", Severity.Error);
+            }
+        }
+    }
+}

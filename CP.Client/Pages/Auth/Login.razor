@@ -1,0 +1,49 @@
+@page "/login"
+
+@inject IAuthService AuthService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.ExtraSmall" Class="mt-16">
+    <MudPaper Elevation="3" Class="pa-8">
+        <MudText Typo="Typo.h5" Align="Align.Center" GutterBottom="true">Iniciar Sesión</MudText>
+        
+        <EditForm Model="_loginRequest" OnValidSubmit="HandleLogin">
+            <DataAnnotationsValidator />
+            
+            <MudTextField Label="Correo Electrónico" 
+                          @bind-Value="_loginRequest.Email" For="@(() => _loginRequest.Email)" 
+                          Variant="Variant.Outlined" Class="mb-4" />
+            
+            <MudTextField Label="Contraseña" 
+                          @bind-Value="_loginRequest.Password" For="@(() => _loginRequest.Password)" 
+                          Variant="Variant.Outlined" InputType="InputType.Password" Class="mb-6" />
+
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mb-4">
+                Ingresar
+            </MudButton>
+        </EditForm>
+
+        <MudText Align="Align.Center">
+            ¿No tienes cuenta? <MudLink Href="register">Regístrate aquí</MudLink>
+        </MudText>
+
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private LoginRequest _loginRequest = new LoginRequest();
+
+    private async Task HandleLogin()
+    {
+        var result = await AuthService.Login(_loginRequest);
+        if (result != null)
+        {
+            NavigationManager.NavigateTo("");
+        }
+        else
+        {
+            Snackbar.Add("Credenciales inválidas", Severity.Error);
+        }
+    }
+}

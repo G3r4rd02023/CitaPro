@@ -1,0 +1,85 @@
+using Microsoft.EntityFrameworkCore;
+using CP.Shared.Entities;
+
+namespace CP.Server.Data
+{
+    public class AppDbContext : DbContext
+    {
+        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
+        {
+        }
+
+        public DbSet<User> Users { get; set; }
+        public DbSet<Business> Businesses { get; set; }
+        public DbSet<Employee> Employees { get; set; }
+        public DbSet<BusinessHour> BusinessHours { get; set; }
+        public DbSet<EmployeeHour> EmployeeHours { get; set; }
+        public DbSet<Service> Services { get; set; }
+        public DbSet<Reservation> Reservations { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            // Business -> User (Owner)
+            modelBuilder.Entity<Business>()
+                .HasOne(b => b.User)
+                .WithMany()
+                .HasForeignKey(b => b.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Employee -> Business
+            modelBuilder.Entity<Employee>()
+                .HasOne(e => e.Business)
+                .WithMany()
+                .HasForeignKey(e => e.BusinessId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // BusinessHour -> Business
+            modelBuilder.Entity<BusinessHour>()
+                .HasOne(bh => bh.Business)
+                .WithMany()
+                .HasForeignKey(bh => bh.BusinessId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // EmployeeHour -> Employee
+            modelBuilder.Entity<EmployeeHour>()
+                .HasOne(eh => eh.Employee)
+                .WithMany()
+                .HasForeignKey(eh => eh.EmployeeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Service -> Business
+            modelBuilder.Entity<Service>()
+                .HasOne(s => s.Business)
+                .WithMany()
+                .HasForeignKey(s => s.BusinessId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Reservation configuration
+            modelBuilder.Entity<Reservation>()
+                .HasOne(r => r.Business)
+                .WithMany()
+                .HasForeignKey(r => r.BusinessId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Reservation>()
+                .HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Reservation>()
+                .HasOne(r => r.Employee)
+                .WithMany()
+                .HasForeignKey(r => r.EmployeeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Reservation>()
+                .HasOne(r => r.Service)
+                .WithMany()
+                .HasForeignKey(r => r.ServiceId)
+                .OnDelete(DeleteBehavior.Restrict);
+        }
+    }
+}

@@ -1,0 +1,81 @@
+﻿@inherits LayoutComponentBase
+@inject IAuthService AuthService
+@inject NavigationManager NavigationManager
+
+<MudThemeProvider Theme="_currentTheme" @bind-IsDarkMode="_isDarkMode" />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
+        <MudText Typo="Typo.h5" Class="ml-3">CitaPro</MudText>
+        <MudSpacer />
+        
+        <AuthorizeView>
+            <Authorized>
+                <MudText Class="mr-4">Hola, @context.User.Identity?.Name</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="Logout" StartIcon="@Icons.Material.Filled.Logout">Salir</MudButton>
+            </Authorized>
+            <NotAuthorized>
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" Href="login" StartIcon="@Icons.Material.Filled.Login">Iniciar Sesión</MudButton>
+            </NotAuthorized>
+        </AuthorizeView>
+
+        <MudToggleIconButton @bind-Toggled="@_isDarkMode"
+                             Icon="@Icons.Material.Filled.DarkMode" Color="Color.Inherit" title="Dark Mode"
+                             ToggledIcon="@Icons.Material.Filled.LightMode" ToggledColor="Color.Warning" Class="ml-4" />
+    </MudAppBar>
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+        <NavMenu />
+    </MudDrawer>
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.Large" Class="my-4 pt-4">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    bool _drawerOpen = true;
+    bool _isDarkMode = false;
+    MudTheme _currentTheme = new MudTheme();
+
+    protected override void OnInitialized()
+    {
+        _currentTheme = new MudTheme()
+        {
+            PaletteLight = new PaletteLight()
+            {
+                Primary = "#594AE2",
+                Secondary = "#E91E63",
+                AppbarBackground = "#594AE2",
+            },
+            PaletteDark = new PaletteDark()
+            {
+                Primary = "#7E6FFF",
+                Secondary = "#F48FB1",
+                AppbarBackground = "#1E1E2D",
+            },
+            Typography = new Typography()
+            {
+                Default = new Default() { FontFamily = new[] { "Outfit", "Helvetica", "Arial", "sans-serif" } }
+            },
+            LayoutProperties = new LayoutProperties()
+            {
+                DefaultBorderRadius = "12px"
+            }
+        };
+    }
+
+    void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    async Task Logout()
+    {
+        await AuthService.Logout();
+        NavigationManager.NavigateTo("login");
+    }
+}

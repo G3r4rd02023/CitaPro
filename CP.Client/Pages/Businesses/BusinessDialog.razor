@@ -1,0 +1,134 @@
+@using CP.Shared.DTOs
+@inject IBusinessService BusinessService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@success">
+            <MudTextField T="string" Label="Nombre del Negocio" Required="true" RequiredError="Nombre es requerido" @bind-Value="Name" />
+            
+            @if (BusinessId != null)
+            {
+                <MudSwitch T="bool" Label="Activo" Color="Color.Success" @bind-Value="IsActive" />
+            }
+            
+            <div class="d-flex align-center mt-4">
+                 <MudFileUpload T="IBrowserFile" FilesChanged="UploadFiles">
+                    <ActivatorContent>
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.CloudUpload">
+                            Subir Imagen
+                        </MudButton>
+                    </ActivatorContent>
+                </MudFileUpload>
+                @if(_file != null)
+                {
+                    <MudText Typo="Typo.body2" Class="ml-4">@_file.Name</MudText>
+                }
+            </div>
+            
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@(!success)">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance? MudDialog { get; set; }
+    [Parameter] public Guid? BusinessId { get; set; }
+
+    MudForm? form;
+    bool success;
+    
+    // Form fields
+    public string Name { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
+    IBrowserFile? _file;
+
+    // Current User ID (normally selected via dropdown of users or assigned to current user)
+    private Guid _currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        // In a real scenario for Admin, we might have a user selector. 
+        // For now, assigning to the logged-in admin or parsing a claim.
+        // Assuming NameIdentifier is the Guid
+        // Try to find the user ID claim. It's usually "nameid" in a raw JWT payload or ClaimTypes.NameIdentifier.
+        var idClaim = user.FindFirst(c => c.Type == "nameid" || c.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier") 
+                      ?? user.FindFirst(c => c.Type.Contains("nameidentifier"));
+
+        if (idClaim != null && Guid.TryParse(idClaim.Value, out var uid))
+        {
+            _currentUserId = uid;
+        }
+
+        if (BusinessId != null)
+        {
+            var business = await BusinessService.GetByIdAsync(BusinessId.Value);
+            if (business != null)
+            {
+                Name = business.Name;
+                IsActive = business.IsActive;
+                _currentUserId = business.UserId; // Keep original owner
+            }
+        }
+    }
+
+    private void UploadFiles(IBrowserFile file)
+    {
+        _file = file;
+    }
+
+    private void Cancel() => MudDialog!.Cancel();
+
+    private async Task Submit()
+    {
+        await form!.Validate();
+        if (form.IsValid)
+        {
+            if (BusinessId == null)
+            {
+                var createDto = new CreateBusinessDto
+                {
+                    Name = Name,
+                    UserId = _currentUserId // Assign to current user for now
+                };
+                var result = await BusinessService.CreateAsync(createDto, _file);
+                if (result)
+                {
+                     Snackbar.Add("Negocio creado", Severity.Success);
+                     MudDialog!.Close(DialogResult.Ok(true));
+                }
+                else
+                {
+                     Snackbar.Add("Error al crear", Severity.Error);
+                }
+            }
+            else
+            {
+                var updateDto = new UpdateBusinessDto
+                {
+                    Id = BusinessId.Value,
+                    Name = Name,
+                    IsActive = IsActive
+                };
+                var result = await BusinessService.UpdateAsync(BusinessId.Value, updateDto, _file);
+                 if (result)
+                {
+                     Snackbar.Add("Negocio actualizado", Severity.Success);
+                     MudDialog!.Close(DialogResult.Ok(true));
+                }
+                else
+                {
+                     Snackbar.Add("Error al actualizar", Severity.Error);
+                }
+            }
+        }
+    }
+}
