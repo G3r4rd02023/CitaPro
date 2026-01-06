@@ -3,17 +3,19 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @using CP.Shared.DTOs
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
     <MudTable Items="@_businesses" Hover="true" Breakpoint="Breakpoint.Sm" Loading="@_loading" LoadingProgressColor="Color.Info">
         <ToolBarContent>
-            <MudText Typo="Typo.h6">Negocios Registrados</MudText>
+            <MudText Typo="Typo.h6">Gestión Global de Negocios</MudText>
             <MudSpacer />
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateDialog">Nuevo Negocio</MudButton>
         </ToolBarContent>
         <HeaderContent>
             <MudTh>Imagen</MudTh>
             <MudTh>Nombre</MudTh>
+            <MudTh>Dueño</MudTh>
             <MudTh>Estado</MudTh>
             <MudTh>Creado</MudTh>
             <MudTh>Acciones</MudTh>
@@ -30,6 +32,7 @@
                 }
             </MudTd>
             <MudTd DataLabel="Nombre">@context.Name</MudTd>
+            <MudTd DataLabel="Dueño">@context.UserId</MudTd>
             <MudTd DataLabel="Estado">
                 @if(context.IsActive)
                 {
@@ -42,8 +45,11 @@
             </MudTd>
             <MudTd DataLabel="Creado">@context.CreatedAt.ToShortDateString()</MudTd>
             <MudTd DataLabel="Acciones">
-                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="@(() => OpenEditDialog(context))" />
-                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteBusiness(context.Id))" />
+                <MudTooltip Text="@(context.IsActive ? "Dar de baja" : "Aprobar")">
+                    <MudIconButton Icon="@(context.IsActive ? Icons.Material.Filled.Block : Icons.Material.Filled.CheckCircle)" 
+                                   Color="@(context.IsActive ? Color.Error : Color.Success)" 
+                                   OnClick="@(() => ToggleBusinessStatus(context))" />
+                </MudTooltip>
             </MudTd>
         </RowTemplate>
     </MudTable>
@@ -65,49 +71,32 @@
         _loading = false;
     }
 
-    private async Task OpenCreateDialog()
+    private async Task ToggleBusinessStatus(BusinessDto business)
     {
-        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-        var dialog = DialogService.Show<BusinessDialog>("Crear Negocio", options);
-        var result = await dialog.Result;
-
-        if (!result.Canceled)
-        {
-            await LoadBusinesses();
-        }
-    }
-
-    private async Task OpenEditDialog(BusinessDto business)
-    {
-        var parameters = new DialogParameters { ["BusinessId"] = business.Id };
-        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-        var dialog = DialogService.Show<BusinessDialog>("Editar Negocio", parameters, options);
-        var result = await dialog.Result;
-
-        if (!result.Canceled)
-        {
-            await LoadBusinesses();
-        }
-    }
-
-    private async Task DeleteBusiness(Guid id)
-    {
+        string action = business.IsActive ? "Dar de baja" : "Aprobar";
         bool? result = await DialogService.ShowMessageBox(
-            "Eliminar Negocio", 
-            "¿Estás seguro/a? Esta acción no se puede deshacer.", 
-            yesText:"Eliminar", cancelText:"Cancelar");
+            $"{action} Negocio", 
+            $"¿Estás seguro/a de que deseas {action.ToLower()} el negocio '{business.Name}'?", 
+            yesText: action, cancelText: "Cancelar");
 
         if(result == true)
         {
-            var success = await BusinessService.DeleteAsync(id);
+            var updateDto = new UpdateBusinessDto
+            {
+                Id = business.Id,
+                Name = business.Name,
+                IsActive = !business.IsActive
+            };
+
+            var success = await BusinessService.UpdateAsync(business.Id, updateDto, null);
             if (success)
             {
-                Snackbar.Add("Negocio eliminado", Severity.Success);
+                Snackbar.Add($"Negocio {(business.IsActive ? "desactivado" : "aprobado")} con éxito", Severity.Success);
                 await LoadBusinesses();
             }
             else
             {
-                Snackbar.Add("Error al eliminar", Severity.Error);
+                Snackbar.Add("Error al cambiar el estado del negocio", Severity.Error);
             }
         }
     }

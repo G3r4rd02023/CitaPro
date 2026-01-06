@@ -10,6 +10,16 @@ namespace CP.Shared.DTOs
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public Guid UserId { get; set; }
+        public List<BusinessHourDto> BusinessHours { get; set; } = new();
+    }
+
+    public class BusinessHourDto
+    {
+        public Guid Id { get; set; }
+        public int DayOfWeek { get; set; }
+        public TimeSpan StartTime { get; set; }
+        public TimeSpan EndTime { get; set; }
+        public bool IsOpen { get; set; }
     }
 
     public class CreateBusinessDto

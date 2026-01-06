@@ -20,7 +20,10 @@ namespace CP.Server.Repositories
 
         public async Task<Business?> GetByIdAsync(Guid id)
         {
-            return await _context.Businesses.Include(b => b.User).FirstOrDefaultAsync(b => b.Id == id);
+            return await _context.Businesses
+                .Include(b => b.User)
+                .Include(b => b.BusinessHours)
+                .FirstOrDefaultAsync(b => b.Id == id);
         }
 
         public async Task<Business> AddAsync(Business business)
@@ -44,6 +47,14 @@ namespace CP.Server.Repositories
                 _context.Businesses.Remove(entity);
                 await _context.SaveChangesAsync();
             }
+            }
+
+        public async Task<IEnumerable<Business>> GetByUserIdAsync(Guid userId)
+        {
+            return await _context.Businesses
+                .Where(b => b.UserId == userId)
+                .Include(b => b.User)
+                .ToListAsync();
         }
     }
 }

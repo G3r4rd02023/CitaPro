@@ -41,7 +41,15 @@ namespace CP.Server.Services
                 ImageUrl = business.ImageUrl,
                 IsActive = business.IsActive,
                 CreatedAt = business.CreatedAt,
-                UserId = business.UserId
+                UserId = business.UserId,
+                BusinessHours = business.BusinessHours.Select(bh => new BusinessHourDto
+                {
+                    Id = bh.Id,
+                    DayOfWeek = bh.DayOfWeek,
+                    StartTime = bh.StartTime,
+                    EndTime = bh.EndTime,
+                    IsOpen = bh.IsOpen
+                }).ToList()
             };
         }
 
@@ -111,6 +119,20 @@ namespace CP.Server.Services
 
             await _repository.DeleteAsync(id);
             return true;
+        }
+
+        public async Task<IEnumerable<BusinessDto>> GetByUserIdAsync(Guid userId)
+        {
+            var businesses = await _repository.GetByUserIdAsync(userId);
+            return businesses.Select(b => new BusinessDto
+            {
+                Id = b.Id,
+                Name = b.Name,
+                ImageUrl = b.ImageUrl,
+                IsActive = b.IsActive,
+                CreatedAt = b.CreatedAt,
+                UserId = b.UserId
+            });
         }
     }
 }

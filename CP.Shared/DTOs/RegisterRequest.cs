@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using CP.Shared.Enums;
 
 namespace CP.Shared.DTOs
 {
@@ -15,5 +16,7 @@ namespace CP.Shared.DTOs
         
         [Compare(nameof(Password))]
         public string ConfirmPassword { get; set; } = string.Empty;
+
+        public Role Role { get; set; } = Role.Client;
     }
 }

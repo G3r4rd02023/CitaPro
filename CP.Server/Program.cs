@@ -34,8 +34,15 @@ namespace CP.Server
             builder.Services.AddScoped<IAuthService, AuthService>();
 
             builder.Services.AddScoped<IBusinessRepository, BusinessRepository>();
+            builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
+            builder.Services.AddScoped<IServiceRepository, ServiceRepository>();
+            builder.Services.AddScoped<IReservationRepository, ReservationRepository>();
+
             builder.Services.AddScoped<IImageService, ImageService>();
             builder.Services.AddScoped<IBusinessService, BusinessService>();
+            builder.Services.AddScoped<IEmployeeService, EmployeeService>();
+            builder.Services.AddScoped<IServiceService, ServiceService>();
+            builder.Services.AddScoped<IReservationService, ReservationService>();
 
             // Cloudinary Configuration
             var cloudinarySettings = builder.Configuration.GetSection("CloudinarySettings").Get<CloudinarySettings>();

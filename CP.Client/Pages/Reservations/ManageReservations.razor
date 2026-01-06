@@ -1,0 +1,169 @@
+@page "/reservations/manage"
+@using CP.Shared.DTOs
+@using CP.Shared.Enums
+@inject IReservationService ReservationService
+@inject IBusinessService BusinessService
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "Business")]
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
+    <MudText Typo="Typo.h4" Class="mb-6 font-weight-bold">Gestionar Reservas</MudText>
+
+    @if (_loading)
+    {
+        <div class="d-flex justify-center my-10">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+        </div>
+    }
+    else if (!_businesses.Any())
+    {
+        <MudAlert Severity="Severity.Info">No tienes negocios registrados para gestionar reservas.</MudAlert>
+    }
+    else
+    {
+        <MudGrid>
+            <MudItem xs="12" md="4">
+                <MudSelect T="Guid" Label="Seleccionar Negocio" @bind-Value="_selectedBusinessId" SelectedValuesChanged="OnBusinessChanged" Variant="Variant.Outlined">
+                    @foreach (var biz in _businesses)
+                    {
+                        <MudSelectItem Value="@biz.Id">@biz.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12">
+                @if (!_reservations.Any())
+                {
+                    <MudText Align="Align.Center" Class="my-10">No hay reservas para este negocio.</MudText>
+                }
+                else
+                {
+                    <MudTable Items="_reservations" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="2" Class="rounded-lg">
+                        <HeaderContent>
+                            <MudTh>Cliente</MudTh>
+                            <MudTh>Servicio</MudTh>
+                            <MudTh>Profesional</MudTh>
+                            <MudTh>Fecha / Hora</MudTh>
+                            <MudTh>Estado</MudTh>
+                            <MudTh>Acciones</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Cliente">@context.UserName</MudTd>
+                            <MudTd DataLabel="Servicio">@context.ServiceName</MudTd>
+                            <MudTd DataLabel="Profesional">@context.EmployeeName</MudTd>
+                            <MudTd DataLabel="Fecha / Hora">
+                                @context.StartTime.ToShortDateString() <br />
+                                <MudText Typo="Typo.caption">@context.StartTime.ToShortTimeString() - @context.EndTime.ToShortTimeString()</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Estado">
+                                <MudChip T="string" Color="@GetStatusColor(context.Status)" Size="Size.Small">@TranslateStatus(context.Status)</MudChip>
+                            </MudTd>
+                            <MudTd DataLabel="Acciones">
+                                <MudMenu Icon="@Icons.Material.Filled.MoreVert" AnchorOrigin="Origin.BottomRight">
+                                    @if (context.Status == ReservationStatus.Pending)
+                                    {
+                                        <MudMenuItem OnClick="@(() => UpdateStatus(context.Id, ReservationStatus.Confirmed))">Confirmar</MudMenuItem>
+                                    }
+                                    @if (context.Status == ReservationStatus.Confirmed)
+                                    {
+                                        <MudMenuItem OnClick="@(() => UpdateStatus(context.Id, ReservationStatus.Completed))">Completar</MudMenuItem>
+                                    }
+                                    @if (context.Status != ReservationStatus.Cancelled && context.Status != ReservationStatus.Completed)
+                                    {
+                                        <MudMenuItem OnClick="@(() => UpdateStatus(context.Id, ReservationStatus.Cancelled))">Cancelar</MudMenuItem>
+                                    }
+                                </MudMenu>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            </MudItem>
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    private List<BusinessDto> _businesses = new();
+    private List<ReservationDto> _reservations = new();
+    private Guid _selectedBusinessId;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBusinesses();
+    }
+
+    private async Task LoadBusinesses()
+    {
+        _loading = true;
+        try
+        {
+            _businesses = (await BusinessService.GetMyBusinessesAsync()).ToList();
+            if (_businesses.Any())
+            {
+                _selectedBusinessId = _businesses.First().Id;
+                await LoadReservations();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OnBusinessChanged()
+    {
+        await LoadReservations();
+    }
+
+    private async Task LoadReservations()
+    {
+        if (_selectedBusinessId == Guid.Empty) return;
+
+        try
+        {
+            _reservations = await ReservationService.GetByBusinessIdAsync(_selectedBusinessId);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar reservas: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task UpdateStatus(Guid id, ReservationStatus newStatus)
+    {
+        var updateDto = new UpdateReservationDto { Id = id, Status = newStatus };
+        var result = await ReservationService.UpdateStatusAsync(id, updateDto);
+        if (result != null)
+        {
+            Snackbar.Add("Estado actualizado con éxito", Severity.Success);
+            await LoadReservations();
+        }
+        else
+        {
+            Snackbar.Add("Error al actualizar estado", Severity.Error);
+        }
+    }
+
+    private Color GetStatusColor(ReservationStatus status) => status switch
+    {
+        ReservationStatus.Pending => Color.Warning,
+        ReservationStatus.Confirmed => Color.Success,
+        ReservationStatus.Completed => Color.Info,
+        ReservationStatus.Cancelled => Color.Error,
+        _ => Color.Default
+    };
+
+    private string TranslateStatus(ReservationStatus status) => status switch
+    {
+        ReservationStatus.Pending => "Pendiente",
+        ReservationStatus.Confirmed => "Confirmada",
+        ReservationStatus.Completed => "Completada",
+        ReservationStatus.Cancelled => "Cancelada",
+        _ => status.ToString()
+    };
+}

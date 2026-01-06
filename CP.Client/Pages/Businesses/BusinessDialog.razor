@@ -44,29 +44,17 @@
     MudForm? form;
     bool success;
     
-    // Form fields
+    
     public string Name { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
     IBrowserFile? _file;
 
-    // Current User ID (normally selected via dropdown of users or assigned to current user)
+    
     private Guid _currentUserId;
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-        // In a real scenario for Admin, we might have a user selector. 
-        // For now, assigning to the logged-in admin or parsing a claim.
-        // Assuming NameIdentifier is the Guid
-        // Try to find the user ID claim. It's usually "nameid" in a raw JWT payload or ClaimTypes.NameIdentifier.
-        var idClaim = user.FindFirst(c => c.Type == "nameid" || c.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier") 
-                      ?? user.FindFirst(c => c.Type.Contains("nameidentifier"));
-
-        if (idClaim != null && Guid.TryParse(idClaim.Value, out var uid))
-        {
-            _currentUserId = uid;
-        }
+        await GetCurrentUserIdAsync();
 
         if (BusinessId != null)
         {
@@ -75,8 +63,22 @@
             {
                 Name = business.Name;
                 IsActive = business.IsActive;
-                _currentUserId = business.UserId; // Keep original owner
+                _currentUserId = business.UserId; 
             }
+        }
+    }
+
+    
+    private async Task GetCurrentUserIdAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;        
+        var idClaim = user.FindFirst(c => c.Type == "nameid" || c.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier") 
+                      ?? user.FindFirst(c => c.Type.Contains("nameidentifier"));
+
+        if (idClaim != null && Guid.TryParse(idClaim.Value, out var uid))
+        {
+            _currentUserId = uid;
         }
     }
 
@@ -97,7 +99,7 @@
                 var createDto = new CreateBusinessDto
                 {
                     Name = Name,
-                    UserId = _currentUserId // Assign to current user for now
+                    UserId = _currentUserId 
                 };
                 var result = await BusinessService.CreateAsync(createDto, _file);
                 if (result)

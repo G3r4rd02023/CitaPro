@@ -13,7 +13,8 @@ namespace CP.Shared.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public Guid UserId { get; set; }
         
-        // Navigation property
+        // Navigation properties
         public User? User { get; set; }
+        public List<BusinessHour> BusinessHours { get; set; } = new();
     }
 }

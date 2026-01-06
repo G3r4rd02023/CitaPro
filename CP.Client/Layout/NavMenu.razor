@@ -1,8 +1,36 @@
-﻿<MudNavMenu>
-    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
-    <MudNavLink Href="reservations" Icon="@Icons.Material.Filled.CalendarMonth">Reservas</MudNavLink>
-    <MudNavLink Href="services" Icon="@Icons.Material.Filled.Spa">Servicios</MudNavLink>
-    <MudNavLink Href="employees" Icon="@Icons.Material.Filled.Badge">Empleados</MudNavLink>
-    <MudNavLink Href="business" Icon="@Icons.Material.Filled.Store">Negocio</MudNavLink>
-    <MudNavLink Href="users" Icon="@Icons.Material.Filled.People">Usuarios</MudNavLink>
-</MudNavMenu>
+﻿
+
+<AuthorizeView Roles ="Admin">
+    <Authorized>
+        <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
+        <MudNavLink Href="business" Icon="@Icons.Material.Filled.Store">Negocios</MudNavLink>
+        <MudNavLink Href="users" Icon="@Icons.Material.Filled.People">Usuarios</MudNavLink>
+    </Authorized>
+</AuthorizeView>
+
+<AuthorizeView>
+    <Authorized>
+        <MudNavLink Href="/my-reservations" Icon="@Icons.Material.Filled.Event" Match="NavLinkMatch.All">Mis Reservas</MudNavLink>
+    </Authorized>
+</AuthorizeView>
+
+<AuthorizeView Roles="Business">
+    <Authorized>         
+        <MudNavLink Href="/reservations/manage" Icon="@Icons.Material.Filled.Assignment" Match="NavLinkMatch.All">Gestionar Reservas</MudNavLink>
+        <MudNavLink Href="/my-business" Icon="@Icons.Material.Filled.Store" Match="NavLinkMatch.All">Mi Negocio</MudNavLink>
+    </Authorized>
+</AuthorizeView>
+
+<AuthorizeView Roles="Admin">
+    <Authorized>
+        <MudNavLink Href="/admin/businesses" Icon="@Icons.Material.Filled.AdminPanelSettings">Admin Negocios</MudNavLink>
+    </Authorized>
+</AuthorizeView>
+
+<AuthorizeView Roles="Client">
+    <Authorized>
+        <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Inicio</MudNavLink>
+        <MudNavLink Href="reservations" Icon="@Icons.Material.Filled.CalendarMonth">Reservas</MudNavLink>        
+    </Authorized>
+</AuthorizeView>
+```

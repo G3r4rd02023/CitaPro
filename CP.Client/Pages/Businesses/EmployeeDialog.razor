@@ -1,0 +1,78 @@
+@using CP.Shared.DTOs
+@inject IEmployeeService EmployeeService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="@_success">
+            <MudTextField T="string" Label="Nombre Completo" Required="true" RequiredError="Nombre es requerido" @bind-Value="_model.FullName" />
+            <MudTextField T="string" Label="Especialidad" @bind-Value="_model.Specialty" />
+            @if (Employee != null)
+            {
+                <MudSwitch T="bool" Label="Activo" Color="Color.Success" @bind-Value="_model.IsActive" />
+            }
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@(!_success)">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance? MudDialog { get; set; }
+    [Parameter] public Guid BusinessId { get; set; }
+    [Parameter] public EmployeeDto? Employee { get; set; }
+
+    private MudForm? _form;
+    private bool _success;
+    private EmployeeModel _model = new();
+
+    protected override void OnInitialized()
+    {
+        if (Employee != null)
+        {
+            _model = new EmployeeModel
+            {
+                FullName = Employee.FullName,
+                Specialty = Employee.Specialty,
+                IsActive = Employee.IsActive
+            };
+        }
+    }
+
+    private void Cancel() => MudDialog!.Cancel();
+
+    private async Task Submit()
+    {
+        await _form!.Validate();
+        if (_form.IsValid)
+        {
+            if (Employee == null)
+            {
+                var createDto = new CreateEmployeeDto { FullName = _model.FullName, Specialty = _model.Specialty, BusinessId = BusinessId };
+                if (await EmployeeService.CreateAsync(createDto))
+                {
+                    Snackbar.Add("Empleado creado", Severity.Success);
+                    MudDialog!.Close(DialogResult.Ok(true));
+                }
+            }
+            else
+            {
+                var updateDto = new UpdateEmployeeDto { Id = Employee.Id, FullName = _model.FullName, Specialty = _model.Specialty, IsActive = _model.IsActive };
+                if (await EmployeeService.UpdateAsync(Employee.Id, updateDto))
+                {
+                    Snackbar.Add("Empleado actualizado", Severity.Success);
+                    MudDialog!.Close(DialogResult.Ok(true));
+                }
+            }
+        }
+    }
+
+    public class EmployeeModel
+    {
+        public string FullName { get; set; } = string.Empty;
+        public string Specialty { get; set; } = string.Empty;
+        public bool IsActive { get; set; } = true;
+    }
+}

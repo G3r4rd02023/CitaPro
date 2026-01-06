@@ -9,5 +9,6 @@ namespace CP.Server.Repositories
         Task<Business> AddAsync(Business business);
         Task UpdateAsync(Business business);
         Task DeleteAsync(Guid id);
+        Task<IEnumerable<Business>> GetByUserIdAsync(Guid userId);
     }
 }

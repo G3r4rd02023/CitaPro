@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using CP.Shared.Entities;
+using CP.Shared.Enums;
 
 namespace CP.Server.Data
 {
@@ -38,7 +39,7 @@ namespace CP.Server.Data
             // BusinessHour -> Business
             modelBuilder.Entity<BusinessHour>()
                 .HasOne(bh => bh.Business)
-                .WithMany()
+                .WithMany(b => b.BusinessHours)
                 .HasForeignKey(bh => bh.BusinessId)
                 .OnDelete(DeleteBehavior.Cascade);
 
@@ -80,6 +81,26 @@ namespace CP.Server.Data
                 .WithMany()
                 .HasForeignKey(r => r.ServiceId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure Decimal Precision
+            modelBuilder.Entity<Service>()
+                .Property(s => s.Price)
+                .HasColumnType("decimal(18,2)");
+
+            // Seed Super Admin
+            var adminId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+            var passwordHash = "$2a$11$/RfwtrZ6ySzjmMS6pUMpzuueQl1mzk2f6D48us/y0k23kpqSvf6Zu"; // Hashed "tecno123"
+
+            modelBuilder.Entity<User>().HasData(new User
+            {
+                Id = adminId,
+                FullName = "super admin",
+                Email = "tecnologershn@gmail.com",
+                Password = passwordHash,
+                Role = Role.Admin,
+                IsActive = true,
+                CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+            });
         }
     }
 }

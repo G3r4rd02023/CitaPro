@@ -1,5 +1,6 @@
 @page "/register"
 @inject IAuthService AuthService
+@using CP.Shared.Enums
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
 
@@ -25,6 +26,11 @@
             <MudTextField Label="Confirmar Contraseña"
                           @bind-Value="_registerRequest.ConfirmPassword" For="@(() => _registerRequest.ConfirmPassword)"
                           Variant="Variant.Outlined" InputType="InputType.Password" Class="mb-6" />
+
+            <MudRadioGroup T="Role" @bind-Value="_registerRequest.Role" Class="mb-4">
+                <MudRadio Value="@(Role.Client)" Color="Color.Primary">Cliente</MudRadio>
+                <MudRadio Value="@(Role.Business)" Color="Color.Secondary">Negocio</MudRadio>
+            </MudRadioGroup>
 
             <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mb-4">
                 Registrarse

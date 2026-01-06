@@ -10,5 +10,7 @@ namespace CP.Client.Services
         Task<bool> CreateAsync(CreateBusinessDto business, IBrowserFile? imageFile);
         Task<bool> UpdateAsync(Guid id, UpdateBusinessDto business, IBrowserFile? imageFile);
         Task<bool> DeleteAsync(Guid id);
+        Task<List<BusinessDto>> GetMyBusinessesAsync();
+        Task<List<BusinessDto>> GetActiveBusinessesAsync();
     }
 }

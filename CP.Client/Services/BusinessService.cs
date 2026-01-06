@@ -64,5 +64,15 @@ namespace CP.Client.Services
             var response = await _httpClient.DeleteAsync($"api/business/{id}");
             return response.IsSuccessStatusCode;
         }
+
+        public async Task<List<BusinessDto>> GetMyBusinessesAsync()
+        {
+            return await _httpClient.GetFromJsonAsync<List<BusinessDto>>("api/business/mine") ?? new List<BusinessDto>();
+        }
+
+        public async Task<List<BusinessDto>> GetActiveBusinessesAsync()
+        {
+            return await _httpClient.GetFromJsonAsync<List<BusinessDto>>("api/business/active") ?? new List<BusinessDto>();
+        }
     }
 }

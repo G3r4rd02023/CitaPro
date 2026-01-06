@@ -1,0 +1,99 @@
+@using CP.Shared.DTOs
+@inject IServiceService ServiceService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="@_success">
+            <MudTextField T="string" Label="Nombre del Servicio" Required="true" RequiredError="Nombre es requerido" @bind-Value="_model.Name" />
+            <MudTextField T="string" Label="Descripción" @bind-Value="_model.Description" />
+            <MudNumericField T="decimal" Label="Precio" Format="C" Required="true" @bind-Value="_model.Price" />
+            <MudNumericField T="int" Label="Duración (minutos)" Required="true" @bind-Value="_model.DurationMinutes" />
+            @if (Service != null)
+            {
+                <MudSwitch T="bool" Label="Activo" Color="Color.Success" @bind-Value="_model.IsActive" />
+            }
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@(!_success)">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance? MudDialog { get; set; }
+    [Parameter] public Guid BusinessId { get; set; }
+    [Parameter] public ServiceDto? Service { get; set; }
+
+    private MudForm? _form;
+    private bool _success;
+    private ServiceModel _model = new();
+
+    protected override void OnInitialized()
+    {
+        if (Service != null)
+        {
+            _model = new ServiceModel
+            {
+                Name = Service.Name,
+                Description = Service.Description,
+                Price = Service.Price,
+                DurationMinutes = Service.DurationMinutes,
+                IsActive = Service.IsActive
+            };
+        }
+    }
+
+    private void Cancel() => MudDialog!.Cancel();
+
+    private async Task Submit()
+    {
+        await _form!.Validate();
+        if (_form.IsValid)
+        {
+            if (Service == null)
+            {
+                var createDto = new CreateServiceDto 
+                { 
+                    Name = _model.Name, 
+                    Description = _model.Description, 
+                    Price = _model.Price, 
+                    DurationMinutes = _model.DurationMinutes, 
+                    BusinessId = BusinessId 
+                };
+                if (await ServiceService.CreateAsync(createDto))
+                {
+                    Snackbar.Add("Servicio creado", Severity.Success);
+                    MudDialog!.Close(DialogResult.Ok(true));
+                }
+            }
+            else
+            {
+                var updateDto = new UpdateServiceDto 
+                { 
+                    Id = Service.Id, 
+                    Name = _model.Name, 
+                    Description = _model.Description, 
+                    Price = _model.Price, 
+                    DurationMinutes = _model.DurationMinutes, 
+                    IsActive = _model.IsActive 
+                };
+                if (await ServiceService.UpdateAsync(Service.Id, updateDto))
+                {
+                    Snackbar.Add("Servicio actualizado", Severity.Success);
+                    MudDialog!.Close(DialogResult.Ok(true));
+                }
+            }
+        }
+    }
+
+    public class ServiceModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public decimal Price { get; set; }
+        public int DurationMinutes { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+}

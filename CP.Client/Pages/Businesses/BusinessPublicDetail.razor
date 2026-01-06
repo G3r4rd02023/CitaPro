@@ -1,0 +1,225 @@
+@page "/business/view/{Id:guid}"
+@inject IBusinessService BusinessService
+@inject IEmployeeService EmployeeService
+@inject IServiceService ServiceService
+@inject IReservationService ReservationService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthStateProvider
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
+    @if (_loading)
+    {
+        <div class="d-flex justify-center my-10">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+        </div>
+    }
+    else if (_business == null)
+    {
+        <MudAlert Severity="Severity.Error">Negocio no encontrado.</MudAlert>
+    }
+    else
+    {
+        <MudGrid>
+            <MudItem xs="12" md="4">
+                <MudPaper Elevation="4" Class="pa-6 rounded-lg sticky-top">
+                    @if (!string.IsNullOrEmpty(_business.ImageUrl))
+                    {
+                        <MudImage Src="@_business.ImageUrl" Alt="@_business.Name" Elevation="2" Class="rounded-lg mb-4" Style="width: 100%; object-fit: cover; height: 250px;" />
+                    }
+                    else
+                    {
+                        <div class="d-flex align-center justify-center bg-light-grey rounded-lg mb-4" style="height: 250px; background-color: #f5f5f5;">
+                            <MudIcon Icon="@Icons.Material.Filled.Storefront" Size="Size.Large" Color="Color.Default" />
+                        </div>
+                    }
+                    <MudText Typo="Typo.h4" Class="font-weight-bold">@_business.Name</MudText>
+                    <MudDivider Class="my-4" />
+                    <MudList T="string">
+                        <MudListItem Icon="@Icons.Material.Filled.Info" Text="Información del negocio" />
+                        <MudListItem Icon="@Icons.Material.Filled.Schedule">
+                            <ChildContent>
+                                <MudText Typo="Typo.body1">Horarios de Atención</MudText>
+                                @if (_business.BusinessHours != null && _business.BusinessHours.Any())
+                                {
+                                    <div class="mt-2">
+                                        @foreach (var day in _business.BusinessHours.OrderBy(h => h.DayOfWeek))
+                                        {
+                                            <div class="d-flex justify-space-between mb-1">
+                                                <MudText Typo="Typo.caption">@GetDayName(day.DayOfWeek)</MudText>
+                                                @if (day.IsOpen)
+                                                {
+                                                    <MudText Typo="Typo.caption" Class="font-weight-bold">@FormatTime(day.StartTime) - @FormatTime(day.EndTime)</MudText>
+                                                }
+                                                else
+                                                {
+                                                    <MudText Typo="Typo.caption" Color="Color.Error">Cerrado</MudText>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">No se han definido horarios aún.</MudText>
+                                }
+                            </ChildContent>
+                        </MudListItem>
+                    </MudList>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-4 py-3 rounded-pill" Size="Size.Large" OnClick="@(() => OpenBookingDialog(null))">Reservar Ahora</MudButton>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="8">
+                <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+                    <MudTabPanel Text="Servicios" Icon="@Icons.Material.Filled.Spa">
+                        <MudText Typo="Typo.h5" Class="mb-4 font-weight-bold">Nuestros Servicios</MudText>
+                        <MudGrid>
+                            @foreach (var service in _services.Where(s => s.IsActive))
+                            {
+                                <MudItem xs="12">
+                                    <MudPaper Elevation="1" Class="pa-4 rounded-lg d-flex align-center justify-space-between hover-paper mb-2">
+                                        <div>
+                                            <MudText Typo="Typo.h6">@service.Name</MudText>
+                                            <MudText Typo="Typo.body2" Color="Color.Secondary">@service.DurationMinutes min</MudText>
+                                        </div>
+                                        <div class="text-right">
+                                            <MudText Typo="Typo.h6" Color="Color.Primary" Class="font-weight-bold">@service.Price.ToString("C")</MudText>
+                                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" Class="mt-1 rounded-pill" OnClick="@(() => OpenBookingDialog(service.Id))">Seleccionar</MudButton>
+                                        </div>
+                                    </MudPaper>
+                                </MudItem>
+                            }
+                            @if (!_services.Any(s => s.IsActive))
+                            {
+                                <MudItem xs="12">
+                                    <MudText Align="Align.Center" Color="Color.Default">No hay servicios disponibles actualmente.</MudText>
+                                </MudItem>
+                            }
+                        </MudGrid>
+                    </MudTabPanel>
+
+                    <MudTabPanel Text="Staff / Empleados" Icon="@Icons.Material.Filled.People">
+                        <MudText Typo="Typo.h5" Class="mb-4 font-weight-bold">Nuestro Equipo</MudText>
+                        <MudGrid>
+                            @foreach (var employee in _employees.Where(e => e.IsActive))
+                            {
+                                <MudItem xs="12" sm="6">
+                                    <MudPaper Elevation="1" Class="pa-4 rounded-lg d-flex align-center">
+                                        <MudAvatar Color="Color.Primary" Class="mr-4">@employee.FullName[0].ToString().ToUpper()</MudAvatar>
+                                        <div>
+                                            <MudText Typo="Typo.subtitle1" Class="font-weight-bold">@employee.FullName</MudText>
+                                            <MudText Typo="Typo.body2" Color="Color.Secondary">@employee.Specialty</MudText>
+                                        </div>
+                                    </MudPaper>
+                                </MudItem>
+                            }
+                            @if (!_employees.Any(e => e.IsActive))
+                            {
+                                <MudItem xs="12">
+                                    <MudText Align="Align.Center" Color="Color.Default">No hay empleados registrados actualmente.</MudText>
+                                </MudItem>
+                            }
+                        </MudGrid>
+                    </MudTabPanel>
+                </MudTabs>
+            </MudItem>
+        </MudGrid>
+    }
+</MudContainer>
+
+<style>
+    .sticky-top {
+        position: sticky;
+        top: 80px;
+    }
+    .hover-paper {
+        transition: background-color 0.2s;
+    }
+    .hover-paper:hover {
+        background-color: rgba(0,0,0,0.02);
+    }
+</style>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    private BusinessDto? _business;
+    private List<ServiceDto> _services = new();
+    private List<EmployeeDto> _employees = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        try
+        {
+            _business = await BusinessService.GetByIdAsync(Id);
+            if (_business != null)
+            {
+                _services = await ServiceService.GetByBusinessIdAsync(Id);
+                _employees = await EmployeeService.GetByBusinessIdAsync(Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar datos: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OpenBookingDialog(Guid? serviceId)
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (!authState.User.Identity?.IsAuthenticated ?? true)
+        {
+            Snackbar.Add("Debes iniciar sesión para realizar una reserva.", Severity.Info);
+            NavigationManager.NavigateTo("login");
+            return;
+        }
+
+        var parameters = new DialogParameters<BookingDialog>
+        {
+            { x => x.BusinessId, Id },
+            { x => x.Services, _services.Where(s => s.IsActive).ToList() },
+            { x => x.Employees, _employees.Where(e => e.IsActive).ToList() },
+            { x => x.InitialServiceId, serviceId }
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<BookingDialog>("Nueva Reserva", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            // Optional: Redirect to my reservations or show success message
+        }
+    }
+
+    private string GetDayName(int dayOfWeek) => dayOfWeek switch
+    {
+        0 => "Domingo",
+        1 => "Lunes",
+        2 => "Martes",
+        3 => "Miércoles",
+        4 => "Jueves",
+        5 => "Viernes",
+        6 => "Sábado",
+        _ => "Día"
+    };
+
+    private string FormatTime(TimeSpan time)
+    {
+        var dateTime = DateTime.Today.Add(time);
+        return dateTime.ToString("h:mm tt");
+    }
+}
+

@@ -1,7 +1,239 @@
 ﻿@page "/"
+@inject IBusinessService BusinessService
+@inject IServiceService ServiceService
+@inject IEmployeeService EmployeeService
+@inject NavigationManager NavigationManager
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Inicio - CitaPro</PageTitle>
 
-<h1>Hello, world!</h1>
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
+    <div class="d-flex flex-column align-center mb-10">
+        <MudText Typo="Typo.h2" Align="Align.Center" Class="font-weight-bold mb-4" Style="color: var(--mud-palette-primary);">Encuentra tu próximo servicio</MudText>
+        <MudText Typo="Typo.h6" Align="Align.Center" Color="Color.Secondary" Class="mb-8">Reserva citas con los mejores profesionales en segundos</MudText>
+        
+        <MudPaper Width="100%" MaxWidth="800px" Elevation="4" Class="pa-2 rounded-pill d-flex align-center">
+            <MudTextField @bind-Value="_searchString" 
+                          Placeholder="@SearchPlaceholder" 
+                          Adornment="Adornment.Start" 
+                          AdornmentIcon="@Icons.Material.Filled.Search" 
+                          IconSize="Size.Medium" 
+                          Variant="Variant.Text" 
+                          Underline="false" 
+                          Class="ml-4 flex-grow-1"
+                          Immediate="true"
+                          OnKeyUp="HandleSearch" />
+            <MudButton Variant="Variant.Filled" 
+                       Color="Color.Primary" 
+                       Class="rounded-pill px-8 py-2 mr-1"
+                       OnClick="FilterData">Buscar</MudButton>
+        </MudPaper>
+    </div>
 
-Welcome to your new app.
+    <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" Centered="true" Class="mb-8" @ref="_tabs" ActivePanelIndexChanged="OnTabChanged">
+        <MudTabPanel Text="Negocios" Icon="@Icons.Material.Filled.Storefront" />
+        <MudTabPanel Text="Servicios" Icon="@Icons.Material.Filled.Spa" />
+        <MudTabPanel Text="Profesionales" Icon="@Icons.Material.Filled.People" />
+    </MudTabs>
+
+    @if (_loading)
+    {
+        <div class="d-flex justify-center my-10">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+        </div>
+    }
+    else
+    {
+        @if (_activeTabIndex == 0) // Businesses
+        {
+            @if (!_filteredBusinesses.Any())
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-4"> No se encontraron negocios. </MudAlert>
+            }
+            else
+            {
+                <MudGrid>
+                    @foreach (var business in _filteredBusinesses)
+                    {
+                        <MudItem xs="12" sm="6" md="4">
+                            <MudCard Elevation="4" Class="rounded-lg hover-card h-100 d-flex flex-column" @onclick="@(() => NavigateToBusiness(business.Id))" Style="cursor:pointer">
+                                @if (!string.IsNullOrEmpty(business.ImageUrl))
+                                {
+                                    <MudCardMedia Image="@business.ImageUrl" Height="200" />
+                                }
+                                else
+                                {
+                                    <div class="d-flex align-center justify-center bg-light-grey" style="height: 200px; background-color: #f5f5f5;">
+                                        <MudIcon Icon="@Icons.Material.Filled.Storefront" Size="Size.Large" Color="Color.Default" />
+                                    </div>
+                                }
+                                <MudCardContent Class="flex-grow-1">
+                                    <MudText Typo="Typo.h5" Class="font-weight-bold">@business.Name</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Hace @GetTimeAgo(business.CreatedAt)</MudText>
+                                </MudCardContent>
+                                <MudCardActions>
+                                    <MudButton Variant="Variant.Text" Color="Color.Primary" EndIcon="@Icons.Material.Filled.ArrowForward">Ver Detalles</MudButton>
+                                </MudCardActions>
+                            </MudCard>
+                        </MudItem>
+                    }
+                </MudGrid>
+            }
+        }
+        else if (_activeTabIndex == 1) // Services
+        {
+            @if (!_filteredServices.Any())
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-4"> No se encontraron servicios. </MudAlert>
+            }
+            else
+            {
+                <MudGrid>
+                    @foreach (var service in _filteredServices)
+                    {
+                        <MudItem xs="12" sm="6" md="4">
+                            <MudPaper Elevation="4" Class="pa-6 rounded-lg hover-card h-100 d-flex flex-column" @onclick="@(() => NavigateToBusiness(service.BusinessId))" Style="cursor:pointer">
+                                <div class="d-flex justify-space-between align-start mb-4">
+                                    <MudIcon Icon="@Icons.Material.Filled.Spa" Color="Color.Primary" Size="Size.Large" />
+                                    <MudChip T="string" Color="Color.Primary" Variant="Variant.Text" Size="Size.Small" Label="true">@service.Price.ToString("C")</MudChip>
+                                </div>
+                                <MudText Typo="Typo.h6" Class="font-weight-bold">@service.Name</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">@service.DurationMinutes min</MudText>
+                                <MudSpacer />
+                                <MudText Typo="Typo.caption" Color="Color.Primary" Class="mt-2">Ver negocio ofrecido</MudText>
+                            </MudPaper>
+                        </MudItem>
+                    }
+                </MudGrid>
+            }
+        }
+        else if (_activeTabIndex == 2) // Professionals
+        {
+            @if (!_filteredEmployees.Any())
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-4"> No se encontraron profesionales. </MudAlert>
+            }
+            else
+            {
+                <MudGrid>
+                    @foreach (var employee in _filteredEmployees)
+                    {
+                        <MudItem xs="12" sm="6" md="4">
+                            <MudPaper Elevation="4" Class="pa-6 rounded-lg hover-card h-100 d-flex flex-column text-center" @onclick="@(() => NavigateToBusiness(employee.BusinessId))" Style="cursor:pointer">
+                                <MudAvatar Color="Color.Primary" Style="height:80px; width:80px;" Class="mx-auto mb-4">
+                                    <MudText Typo="Typo.h4">@employee.FullName[0].ToString().ToUpper()</MudText>
+                                </MudAvatar>
+                                <MudText Typo="Typo.h6" Class="font-weight-bold">@employee.FullName</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">@employee.Specialty</MudText>
+                                <MudSpacer />
+                                <MudButton Variant="Variant.Text" Color="Color.Primary" Class="mt-4">Ver Negocio</MudButton>
+                            </MudPaper>
+                        </MudItem>
+                    }
+                </MudGrid>
+            }
+        }
+    }
+</MudContainer>
+
+<style>
+    .hover-card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .hover-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 12px 20px rgba(0,0,0,0.15) !important;
+    }
+</style>
+
+@code {
+    private MudTabs? _tabs;
+    private int _activeTabIndex = 0;
+    private List<BusinessDto> _allBusinesses = new();
+    private List<BusinessDto> _filteredBusinesses = new();
+    private List<ServiceDto> _allServices = new();
+    private List<ServiceDto> _filteredServices = new();
+    private List<EmployeeDto> _allEmployees = new();
+    private List<EmployeeDto> _filteredEmployees = new();
+    
+    private string _searchString = "";
+    private bool _loading = true;
+
+    private string SearchPlaceholder => _activeTabIndex switch
+    {
+        1 => "Buscar servicios por nombre...",
+        2 => "Buscar profesionales por nombre o especialidad...",
+        _ => "Buscar negocios por nombre..."
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAllData();
+    }
+
+    private async Task LoadAllData()
+    {
+        _loading = true;
+        try
+        {
+            var businessesTask = BusinessService.GetActiveBusinessesAsync();
+            var servicesTask = ServiceService.GetActiveServicesAsync();
+            var employeesTask = EmployeeService.GetActiveEmployeesAsync();
+
+            await Task.WhenAll(businessesTask, servicesTask, employeesTask);
+
+            _allBusinesses = await businessesTask;
+            _allServices = await servicesTask;
+            _allEmployees = await employeesTask;
+
+            FilterData();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void OnTabChanged(int index)
+    {
+        _activeTabIndex = index;
+        FilterData();
+    }
+
+    private void HandleSearch(KeyboardEventArgs e)
+    {
+        FilterData();
+    }
+
+    private void FilterData()
+    {
+        if (string.IsNullOrWhiteSpace(_searchString))
+        {
+            _filteredBusinesses = _allBusinesses;
+            _filteredServices = _allServices;
+            _filteredEmployees = _allEmployees;
+        }
+        else
+        {
+            var search = _searchString.Trim();
+            _filteredBusinesses = _allBusinesses.Where(b => b.Name.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
+            _filteredServices = _allServices.Where(s => s.Name.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
+            _filteredEmployees = _allEmployees.Where(e => e.FullName.Contains(search, StringComparison.OrdinalIgnoreCase) || 
+                                                          e.Specialty.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+    }
+
+    private void NavigateToBusiness(Guid id)
+    {
+        NavigationManager.NavigateTo($"/business/view/{id}");
+    }
+
+    private string GetTimeAgo(DateTime dateTime)
+    {
+        var span = DateTime.UtcNow - dateTime;
+        if (span.TotalDays > 365) return $"{(int)(span.TotalDays / 365)} años";
+        if (span.TotalDays > 30) return $"{(int)(span.TotalDays / 30)} meses";
+        if (span.TotalDays > 1) return $"{(int)span.TotalDays} días";
+        if (span.TotalHours > 1) return $"{(int)span.TotalHours} horas";
+        return "poco tiempo";
+    }
+}

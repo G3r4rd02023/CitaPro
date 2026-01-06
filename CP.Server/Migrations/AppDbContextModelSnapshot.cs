@@ -98,6 +98,10 @@ namespace CP.Server.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<string>("Specialty")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("BusinessId");
@@ -182,7 +186,11 @@ namespace CP.Server.Migrations
                     b.Property<Guid>("BusinessId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<int>("IntDurationMinutes")
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("DurationMinutes")
                         .HasColumnType("int");
 
                     b.Property<bool>("IsActive")
@@ -232,6 +240,18 @@ namespace CP.Server.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Users");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("11111111-1111-1111-1111-111111111111"),
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Email = "tecnologershn@gmail.com",
+                            FullName = "super admin",
+                            IsActive = true,
+                            Password = "$2a$11$/RfwtrZ6ySzjmMS6pUMpzuueQl1mzk2f6D48us/y0k23kpqSvf6Zu",
+                            Role = 0
+                        });
                 });
 
             modelBuilder.Entity("CP.Shared.Entities.Business", b =>
@@ -248,7 +268,7 @@ namespace CP.Server.Migrations
             modelBuilder.Entity("CP.Shared.Entities.BusinessHour", b =>
                 {
                     b.HasOne("CP.Shared.Entities.Business", "Business")
-                        .WithMany()
+                        .WithMany("BusinessHours")
                         .HasForeignKey("BusinessId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -322,6 +342,11 @@ namespace CP.Server.Migrations
                         .IsRequired();
 
                     b.Navigation("Business");
+                });
+
+            modelBuilder.Entity("CP.Shared.Entities.Business", b =>
+                {
+                    b.Navigation("BusinessHours");
                 });
 #pragma warning restore 612, 618
         }

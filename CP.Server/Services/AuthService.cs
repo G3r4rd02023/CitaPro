@@ -35,7 +35,7 @@ namespace CP.Server.Services
                 FullName = request.FullName,
                 Email = request.Email,
                 Password = passwordHash,
-                Role = Role.Client // Default role
+                Role = request.Role
             };
 
             var createdUser = await _userRepository.CreateUserAsync(newUser);

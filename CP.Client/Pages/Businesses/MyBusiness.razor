@@ -1,0 +1,154 @@
+@page "/my-businesses"
+@inject IBusinessService BusinessService
+@inject IDialogService DialogService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@using Microsoft.AspNetCore.Authorization
+@using CP.Shared.DTOs
+@attribute [Authorize(Roles = "Business")]
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
+    <div class="d-flex justify-space-between align-center mb-6">
+        <MudText Typo="Typo.h4" Color="Color.Primary">Mis Negocios</MudText>
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Primary" 
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="OpenCreateDialog">
+            Nuevo Negocio
+        </MudButton>
+    </div>
+
+    @if (_loading)
+    {
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="d-flex mx-auto mt-8" />
+    }
+    else if (_businesses == null || !_businesses.Any())
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Class="mt-4">
+            No tienes negocios registrados. ¡Crea uno para empezar!
+        </MudAlert>
+    }
+    else
+    {
+        <MudGrid>
+            @foreach (var business in _businesses)
+            {
+                <MudItem xs="12" sm="6" md="4">
+                    <MudCard Elevation="4" Class="h-100 d-flex flex-column">
+                        @if (!string.IsNullOrEmpty(business.ImageUrl))
+                        {
+                            <MudCardMedia Image="@business.ImageUrl" Height="200" />
+                        }
+                        else
+                        {
+                             <MudCardMedia Image="https://via.placeholder.com/300x200?text=No+Image" Height="200" />
+                        }
+                        
+                        <MudCardContent Class="flex-grow-1">
+                            <MudText Typo="Typo.h6" GutterBottom="true">@business.Name</MudText>
+                            <MudChip T="string" Color="@(business.IsActive ? Color.Success : Color.Error)" Size="Size.Small" Class="mb-2">
+                                @(business.IsActive ? "Activo" : "Inactivo")
+                            </MudChip>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                Creado el: @business.CreatedAt.ToShortDateString()
+                            </MudText>
+                        </MudCardContent>
+
+                        <MudCardActions>
+                            <MudButton Variant="Variant.Text" 
+                                       Color="Color.Primary" 
+                                       StartIcon="@Icons.Material.Filled.Settings"
+                                       OnClick="@(() => NavigationManager.NavigateTo($"/business/manage/{business.Id}"))">
+                                Gestionar
+                            </MudButton>
+                            <MudButton Variant="Variant.Text" 
+                                       Color="Color.Primary" 
+                                       StartIcon="@Icons.Material.Filled.Edit"
+                                       OnClick="@(() => OpenEditDialog(business.Id))">
+                                Editar
+                            </MudButton>
+                            <MudSpacer />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                           Color="Color.Error" 
+                                           OnClick="@(() => DeleteBusiness(business.Id))" />
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    private List<BusinessDto> _businesses = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBusinesses();
+    }
+
+    private async Task LoadBusinesses()
+    {
+        try
+        {
+            _loading = true;
+            _businesses = await BusinessService.GetMyBusinessesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar negocios: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = DialogService.Show<BusinessDialog>("Crear Negocio", options);
+        var result = await dialog.Result;
+
+        if (!result!.Canceled)
+        {
+            await LoadBusinesses();
+        }
+    }
+
+    private async Task OpenEditDialog(Guid businessId)
+    {
+        var parameters = new DialogParameters { ["BusinessId"] = businessId };
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = DialogService.Show<BusinessDialog>("Editar Negocio", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result!.Canceled)
+        {
+            await LoadBusinesses();
+        }
+    }
+
+    private async Task DeleteBusiness(Guid id)
+    {
+        bool? result = await DialogService.ShowMessageBox(
+            "Eliminar Negocio", 
+            "¿Estás seguro/a? Esta acción no se puede deshacer.", 
+            yesText:"Eliminar", cancelText:"Cancelar");
+        
+        if (result == true)
+        {
+            var success = await BusinessService.DeleteAsync(id);
+            if (success)
+            {
+                Snackbar.Add("Negocio eliminado", Severity.Success);
+                await LoadBusinesses();
+            }
+            else
+            {
+                Snackbar.Add("Error al eliminar el negocio", Severity.Error);
+            }
+        }
+    }
+}

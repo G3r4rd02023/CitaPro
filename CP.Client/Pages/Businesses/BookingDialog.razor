@@ -1,0 +1,140 @@
+@using CP.Shared.DTOs
+@using MudBlazor
+@inject IReservationService ReservationService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Class="mr-3 mb-n1" />
+            Nueva Reserva
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudContainer Style="max-height: 400px; overflow-y: auto">
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudSelect T="Guid" Label="Servicio" @bind-Value="_selectedServiceId" Required="true" Variant="Variant.Outlined">
+                        @foreach (var service in Services)
+                        {
+                            <MudSelectItem Value="@service.Id">@service.Name (@service.Price.ToString("C"))</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudSelect T="Guid" Label="Profesional" @bind-Value="_selectedEmployeeId" Required="true" Variant="Variant.Outlined">
+                        @foreach (var emp in Employees)
+                        {
+                            <MudSelectItem Value="@emp.Id">@emp.FullName - @emp.Specialty</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker Label="Fecha" @bind-Date="_selectedDate" Required="true" MinDate="DateTime.Today" Variant="Variant.Outlined" PickerVariant="PickerVariant.Dialog" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudTimePicker Label="Hora" @bind-Time="_selectedTime" Required="true" Variant="Variant.Outlined" PickerVariant="PickerVariant.Dialog" AmPm="true" />
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="@_processing">
+            @if (_processing)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                <MudText Class="ms-2">Procesando...</MudText>
+            }
+            else
+            {
+                <MudText>Confirmar Reserva</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public Guid BusinessId { get; set; }
+    [Parameter] public List<ServiceDto> Services { get; set; } = new();
+    [Parameter] public List<EmployeeDto> Employees { get; set; } = new();
+    [Parameter] public Guid? InitialServiceId { get; set; }
+
+    private Guid _selectedServiceId;
+    private Guid _selectedEmployeeId;
+    private DateTime? _selectedDate = DateTime.Today;
+    private TimeSpan? _selectedTime;
+    private bool _processing = false;
+
+    protected override void OnInitialized()
+    {
+        _selectedTime = DateTime.Now.TimeOfDay.Add(TimeSpan.FromHours(1)); // Default to 1 hour from now
+        _selectedTime = new TimeSpan(_selectedTime.Value.Hours, _selectedTime.Value.Minutes >= 30 ? 30 : 0, 0);
+
+        if (InitialServiceId.HasValue)
+        {
+            _selectedServiceId = InitialServiceId.Value;
+        }
+        else if (Services.Any())
+        {
+            _selectedServiceId = Services.First().Id;
+        }
+
+        if (Employees.Any())
+        {
+            _selectedEmployeeId = Employees.First().Id;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        if (_selectedServiceId == Guid.Empty || _selectedEmployeeId == Guid.Empty || !_selectedDate.HasValue || !_selectedTime.HasValue)
+        {
+            Snackbar.Add("Por favor complete todos los campos.", Severity.Warning);
+            return;
+        }
+
+        _processing = true;
+        try
+        {
+            var start = _selectedDate.Value.Add(_selectedTime.Value);
+            var service = Services.FirstOrDefault(s => s.Id == _selectedServiceId);
+            var end = start.AddMinutes(service?.DurationMinutes ?? 30);
+
+            var createDto = new CreateReservationDto
+            {
+                BusinessId = BusinessId,
+                ServiceId = _selectedServiceId,
+                EmployeeId = _selectedEmployeeId,
+                StartTime = start,
+                EndTime = end
+            };
+
+            var result = await ReservationService.CreateAsync(createDto);
+            if (result != null)
+            {
+                Snackbar.Add("Reserva creada con éxito", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add("Error al crear la reserva", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _processing = false;
+        }
+    }
+}

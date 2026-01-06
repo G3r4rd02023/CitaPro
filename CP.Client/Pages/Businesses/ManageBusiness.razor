@@ -1,0 +1,185 @@
+@page "/business/manage/{BusinessId:guid}"
+@inject IBusinessService BusinessService
+@inject IEmployeeService EmployeeService
+@inject IServiceService ServiceService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@using CP.Shared.DTOs
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Business")]
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
+    @if (_loading)
+    {
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="d-flex mx-auto" />
+    }
+    else if (_business == null)
+    {
+        <MudAlert Severity="Severity.Error">Negocio no encontrado.</MudAlert>
+    }
+    else
+    {
+        <div class="d-flex align-center mb-6">
+            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="GoBack" Class="mr-4" />
+            <div>
+                <MudText Typo="Typo.h4">Gestionar: @_business.Name</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Configura tus empleados y servicios</MudText>
+            </div>
+        </div>
+
+        <MudTabs Elevation="4" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+            <MudTabPanel Text="Empleados" Icon="@Icons.Material.Filled.People">
+                <div class="d-flex justify-end mb-4">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenEmployeeDialog">
+                        Nuevo Empleado
+                    </MudButton>
+                </div>
+                <MudTable Items="@_employees" Hover="true" Breakpoint="Breakpoint.Sm">
+                    <NoRecordsContent>
+                        <MudText>No hay empleados registrados</MudText>
+                    </NoRecordsContent>
+                    <HeaderContent>
+                        <MudTh>Nombre</MudTh>
+                        <MudTh>Especialidad</MudTh>
+                        <MudTh>Estado</MudTh>
+                        <MudTh>Acciones</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Nombre">@context.FullName</MudTd>
+                        <MudTd DataLabel="Especialidad">@context.Specialty</MudTd>
+                        <MudTd DataLabel="Estado">
+                            <MudChip T="string" Color="@(context.IsActive ? Color.Success : Color.Error)" Size="Size.Small">
+                                @(context.IsActive ? "Activo" : "Inactivo")
+                            </MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Acciones">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="@(() => OpenEmployeeDialog(context))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteEmployee(context.Id))" />
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Servicios" Icon="@Icons.Material.Filled.Spa">
+                <div class="d-flex justify-end mb-4">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenServiceDialog">
+                        Nuevo Servicio
+                    </MudButton>
+                </div>
+                <MudTable Items="@_services" Hover="true" Breakpoint="Breakpoint.Sm">
+                    <NoRecordsContent>
+                        <MudText>No hay servicios registrados</MudText>
+                    </NoRecordsContent>
+                    <HeaderContent>
+                        <MudTh>Nombre</MudTh>
+                        <MudTh>Precio</MudTh>
+                        <MudTh>Duración</MudTh>
+                        <MudTh>Estado</MudTh>
+                        <MudTh>Acciones</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Nombre">@context.Name</MudTd>
+                        <MudTd DataLabel="Precio">@context.Price.ToString("C")</MudTd>
+                        <MudTd DataLabel="Duración">@context.DurationMinutes min</MudTd>
+                        <MudTd DataLabel="Estado">
+                            <MudChip T="string" Color="@(context.IsActive ? Color.Success : Color.Error)" Size="Size.Small">
+                                @(context.IsActive ? "Activo" : "Inactivo")
+                            </MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Acciones">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="@(() => OpenServiceDialog(context))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteService(context.Id))" />
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudTabPanel>
+        </MudTabs>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public Guid BusinessId { get; set; }
+    private BusinessDto? _business;
+    private List<EmployeeDto> _employees = new();
+    private List<ServiceDto> _services = new();
+    private bool _loading = true;
+
+    [Inject] private NavigationManager NavigationManager { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            _loading = true;
+            _business = await BusinessService.GetByIdAsync(BusinessId);
+            if (_business != null)
+            {
+                _employees = await EmployeeService.GetByBusinessIdAsync(BusinessId);
+                _services = await ServiceService.GetByBusinessIdAsync(BusinessId);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar datos: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void GoBack() => NavigationManager.NavigateTo("/my-businesses");
+
+    private async Task OpenEmployeeDialog() => await OpenEmployeeDialog(null);
+
+    private async Task OpenEmployeeDialog(EmployeeDto? employee)
+    {
+        var parameters = new DialogParameters { ["BusinessId"] = BusinessId, ["Employee"] = employee };
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = DialogService.Show<EmployeeDialog>(employee == null ? "Nuevo Empleado" : "Editar Empleado", parameters, options);
+        var result = await dialog.Result;
+        if (!result!.Canceled) await LoadData();
+    }
+
+    private async Task DeleteEmployee(Guid id)
+    {
+        var result = await DialogService.ShowMessageBox("Eliminar Empleado", "¿Estás seguro/a?", yesText: "Eliminar", cancelText: "Cancelar");
+        if (result == true)
+        {
+            if (await EmployeeService.DeleteAsync(id))
+            {
+                Snackbar.Add("Empleado eliminado", Severity.Success);
+                await LoadData();
+            }
+        }
+    }
+
+    private async Task OpenServiceDialog() => await OpenServiceDialog(null);
+
+    private async Task OpenServiceDialog(ServiceDto? service)
+    {
+        var parameters = new DialogParameters { ["BusinessId"] = BusinessId, ["Service"] = service };
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = DialogService.Show<ServiceDialog>(service == null ? "Nuevo Servicio" : "Editar Servicio", parameters, options);
+        var result = await dialog.Result;
+        if (!result!.Canceled) await LoadData();
+    }
+
+    private async Task DeleteService(Guid id)
+    {
+        var result = await DialogService.ShowMessageBox("Eliminar Servicio", "¿Estás seguro/a?", yesText: "Eliminar", cancelText: "Cancelar");
+        if (result == true)
+        {
+            if (await ServiceService.DeleteAsync(id))
+            {
+                Snackbar.Add("Servicio eliminado", Severity.Success);
+                await LoadData();
+            }
+        }
+    }
+}
